@@ -1,0 +1,198 @@
+/*
+ Project 1: Generating Text
+ Course: CS 251, Summer 2023, Professor: Scott Reckinger 
+ Author: Ayesha Noureen
+ NetId: anoure3
+ 
+ File: textGenerator.cpp
+ Assignmet description: This program takes in user given text file and then randomly 
+ generates new text in the same style with the help of a collection of N-grams.
+ */
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <random>
+#include "myrandom.h"
+
+using namespace std;
+
+typedef vector<string> WordVec;
+typedef map<WordVec, WordVec> NgramMap;
+
+// Words of vector which takes in the map window, the new generated words
+// and the N-gram in the parameter 
+WordVec moveWindow(WordVec window, string newWord, int N){
+    WordVec newWindow;
+    for(int i = 1; i < N-1; ++i)
+    newWindow.push_back(window[i]);
+    newWindow.push_back(newWord);
+    return newWindow;
+}
+
+// Map building funtion which takes is file, N-gram, and the map in the parameter  
+void buildMap(ifstream &file, int N, NgramMap &map){
+    WordVec words;
+    string word;
+    WordVec initial;
+
+    // Read the first N-1 words and push to both 'words' and 'initial'
+    for(int i = 0; i < N-1; ++i){
+        if(file >> word){
+            words.push_back(word);
+            initial.push_back(word);
+        }
+    }
+
+    // Process the rest of the file
+    while(file >> word){
+        map[words].push_back(word);
+        words = moveWindow(words, word, N);
+    }
+
+    // Wrapping around for the final N-1 words
+    for(auto &w : initial){
+        map[words].push_back(w);
+        words = moveWindow(words, w, N);
+    }
+}
+
+// Generating text function which takes in the build map, N-grams, 
+// and total number of words in the parameters  
+void generateText(NgramMap &map, int N, int totalWords){
+    if(map.empty()){
+    cerr << "Error: Map is empty. You should build the map first." << endl;
+    return;
+    }
+
+    // Put all keys from map into a vector
+    vector<WordVec> keys;
+    for(const auto& kv : map){
+    keys.push_back(kv.first);
+    }
+
+    // Selecting a random start point
+    WordVec window = keys[randomInteger(0, keys.size() - 1)];
+    cout << "\n...";
+    
+    for(auto w : window)
+    cout << " " << w;
+    
+    for(int i = N-1; i < totalWords; ++i){
+    auto next_words = map[window];
+    
+    if(next_words.empty()){
+    cerr << "Error: Prefix does not have any suffixes." << endl;
+    return;
+    }
+    
+    string word = next_words[randomInteger(0, next_words.size() - 1)];
+    cout << " " << word;
+    window = moveWindow(window, word, N);
+    }
+    
+    cout << "...\n";
+}
+
+// Print function which helps in displaying the build map 
+void printMap(NgramMap &map){
+    for(auto& pair : map){
+        cout << "{";
+        
+        for(int i = 0; i < pair.first.size(); i++){
+            if (i != 0) {
+                cout << " ";
+            }
+            cout << pair.first.at(i);
+        }
+        
+        cout << "} -> {";
+
+        for(int j = 0; j < pair.second.size(); j++){
+            if (j != 0){
+                cout << " ";
+            }
+            cout << pair.second.at(j);
+        }
+        cout << "}" << endl;
+    }
+    cout << endl;
+}
+
+// Clears up the map 
+void clearMap(NgramMap &map){
+    map.clear();
+    }
+
+
+// Main function where most of the print statements and the function callings are 
+int main(){
+    string inputFileName;
+    int N, numWords;
+    
+    cout << "Welcome to the Text Generator." << endl;
+    cout << "This program makes random text based on a document." << endl;
+    cout << "Input file name? ";
+    getline(cin, inputFileName);
+    
+    ifstream inputFile(inputFileName.c_str());
+    
+    while(!inputFile){
+        cerr << "Invalid file, try again: ";
+        getline(cin, inputFileName);
+        inputFile.open(inputFileName.c_str());
+        }
+        
+        cout << "Value of N? ";
+        cin >> N;
+        
+        while(N <= 1){
+            cout << "N must be > 1, try again: ";
+            cin >> N;
+            }
+            
+        cout << "Total words you'd like to generate? ";
+        cin >> numWords;
+            
+        while(numWords < N){
+            cout << "Total words must be at least N, try again: ";
+            cin >> numWords;
+            }
+                
+    NgramMap map;
+    char command;
+    
+    do{
+        cout << "Type b-build map, p-print map, g-generate text, s-start over, x-to exit: ";
+        cin >> command;
+        
+        switch(command){
+            case 'b':
+            buildMap(inputFile, N, map);
+            cout << "\n...Building map: " << inputFileName << "..." << endl <<endl;
+            break;
+            
+            case 'p':
+            printMap(map);
+            break;
+            
+            case 'g':
+            generateText(map, N, numWords);
+            break;
+            
+            case 's':
+            clearMap(map);
+            main();
+            break;
+            
+            case 'x':
+            inputFile.close();
+            return 0;
+            }
+        }
+        
+    while(command != 'x');
+    return 0;
+}
